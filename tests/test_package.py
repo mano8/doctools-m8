@@ -52,13 +52,54 @@ def test_extras_match_the_scaffold_contract() -> None:
     assert extras["docling"] == []
 
 
+CORE_MODULES = (
+    "doctools_m8",
+    "doctools_m8._jcs",
+    "doctools_m8._jsonstream",
+    "doctools_m8.artifact",
+    "doctools_m8.models",
+    "doctools_m8.protocols",
+    "doctools_m8.revisions",
+)
+
+
 def test_core_wheel_has_no_native_dependency_or_optional_import() -> None:
-    """A clean interpreter can import the core package without extras
-    installed, and it never imports ``cryptography`` or ``ai_sdk_m8``."""
+    """A clean interpreter can import every core module without extras
+    installed, and none imports ``cryptography``, ``ai_sdk_m8`` or
+    ``pypdfium2``."""
     script = (
-        "import sys, doctools_m8  # noqa: F401\n"
+        "import importlib, sys\n"
+        f"for name in {CORE_MODULES!r}:\n"
+        "    importlib.import_module(name)\n"
         "assert 'cryptography' not in sys.modules\n"
         "assert 'ai_sdk_m8' not in sys.modules\n"
         "assert 'pypdfium2' not in sys.modules\n"
+    )
+    subprocess.run([sys.executable, "-I", "-c", script], cwd=ROOT, check=True)
+
+
+def test_import_performs_no_io() -> None:
+    """Importing the core modules opens no file but their own sources and
+    touches no socket, process or filesystem mutation (audit events).
+    Pydantic's one-time plugin discovery is warmed up first: it is the
+    dependency's I/O, not this package's."""
+    script = (
+        "import gzip, hashlib, importlib, struct, sys, zlib, pydantic\n"
+        "class _Warm(pydantic.BaseModel):\n"
+        "    x: int = 0\n"
+        "events = []\n"
+        "def hook(event, args):\n"
+        "    if event == 'open' and not str(args[0]).endswith(('.py', '.pyc')):\n"
+        "        events.append((event, str(args[0])))\n"
+        "    elif event.split('.')[0] in {'socket', 'subprocess', 'shutil',\n"
+        "                                 'urllib', 'http', 'tempfile'}:\n"
+        "        events.append((event,))\n"
+        "    elif event in {'os.system', 'os.posix_spawn', 'os.exec',\n"
+        "                   'os.remove', 'os.rename', 'os.mkdir'}:\n"
+        "        events.append((event,))\n"
+        "sys.addaudithook(hook)\n"
+        f"for name in {CORE_MODULES!r}:\n"
+        "    importlib.import_module(name)\n"
+        "assert not events, events\n"
     )
     subprocess.run([sys.executable, "-I", "-c", script], cwd=ROOT, check=True)
