@@ -35,8 +35,8 @@ sandbox = ["ai-sdk-m8[jobcontext]"]
 provenance = ["ai-sdk-m8[jobcontext]"]
 # Optional Docling parser (placeholder until T65).
 docling = []
-test = ["pytest>=8.0", "pytest-cov>=6.0", "coverage>=7.0", "pyyaml>=6.0",
-        "types-PyYAML"]
+test = ["pytest>=8.0", "pytest-cov>=6.0", "coverage>=7.0", "hypothesis>=6.100",
+        "pyyaml>=6.0", "types-PyYAML"]
 dev = ["ruff>=0.9.0", "mypy>=1.14.0", "bandit>=1.8.0"]
 
 [tool.hatch.build.targets.wheel]
